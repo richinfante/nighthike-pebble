@@ -1,10 +1,14 @@
 {
   "name": "nighthike",
   "author": "richinfante",
-  "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "version": "1.1.0",
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@rebble/clay": "^1.1.0"
+  },
   "pebble": {
     "displayName": "nighthike",
     "uuid": "b934d4a4-ffd2-4598-8234-b43c019cd346",
@@ -22,7 +26,11 @@
     "watchapp": {
       "watchface": true
     },
-    "capabilities": ["location", "health"],
+    "capabilities": [
+      "location",
+      "health",
+      "configurable"
+    ],
     "messageKeys": [
       "Latitude",
       "Longitude",
@@ -30,17 +38,47 @@
       "Altitude",
       "AltitudeValid",
       "LocationStatus",
-      "RequestLocation"
+      "RequestLocation",
+      "Units",
+      "BacklightColor"
     ],
     "resources": {
       "media": [
-        { "type": "font", "name": "MONO_14", "file": "fonts/UbuntuMono-Regular.ttf" },
-        { "type": "font", "name": "MONO_BOLD_14", "file": "fonts/UbuntuMono-Bold.ttf" },
-        { "type": "font", "name": "MONO_BOLD_16", "file": "fonts/UbuntuMono-Bold.ttf" },
-        { "type": "font", "name": "MONO_20", "file": "fonts/UbuntuMono-Regular.ttf" },
-        { "type": "font", "name": "MONO_22", "file": "fonts/UbuntuMono-Regular.ttf" },
-        { "type": "font", "name": "MONO_28", "file": "fonts/UbuntuMono-Regular.ttf" },
-        { "type": "font", "name": "MONO_32", "file": "fonts/UbuntuMono-Regular.ttf" }
+        {
+          "type": "font",
+          "name": "MONO_14",
+          "file": "fonts/UbuntuMono-Regular.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_BOLD_14",
+          "file": "fonts/UbuntuMono-Bold.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_BOLD_16",
+          "file": "fonts/UbuntuMono-Bold.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_20",
+          "file": "fonts/UbuntuMono-Regular.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_22",
+          "file": "fonts/UbuntuMono-Regular.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_28",
+          "file": "fonts/UbuntuMono-Regular.ttf"
+        },
+        {
+          "type": "font",
+          "name": "MONO_32",
+          "file": "fonts/UbuntuMono-Regular.ttf"
+        }
       ]
     }
   }

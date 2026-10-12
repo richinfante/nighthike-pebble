@@ -1,3 +1,7 @@
+var Clay = require('@rebble/clay');
+var clayConfig = require('./config.json');
+var clay = new Clay(clayConfig);
+
 var locationPending = false;
 
 function requestLocation() {

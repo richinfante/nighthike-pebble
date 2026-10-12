@@ -26,8 +26,16 @@ Medium and large displays use `HEADING`, `ACCURACY`, `ALTITUDE`, and `HEART RATE
 compact displays use `HDG`, `ACC`, `ALT`, and `HR`. GPS status appears
 beside `LOCATION` rather than taking a separate bottom row.
 
-`ACC` is the phone's reported horizontal accuracy in
-metres, rounded up; `ACC --m` means accuracy was not provided. `HDG` is the
+Open the watchface's settings in the Pebble phone app to choose Metric or
+Imperial units and a backlight color. Metric is the default; Imperial displays
+accuracy in feet/miles and altitude in feet/miles. Red is the default backlight
+tint. Available choices are red, orange, yellow, green, blue, white, or the
+watch's system default. Color tinting is ignored on watches without a color
+backlight. Preferences are saved on the watch and applied when the face is active.
+
+`ACC` is the phone's reported horizontal accuracy, rounded up in metres in
+Metric mode or feet/miles in Imperial mode; a `--` value means accuracy was
+not provided. `HDG` is the
 watch's magnetic compass heading clockwise from north, not GPS course or true
 north. `M` marks magnetic heading, `*` marks calibration in progress, and
 `HDG CAL` means the reading is not yet valid. Watches without a compass show
@@ -35,9 +43,10 @@ north. `M` marks magnetic heading, `*` marks calibration in progress, and
 
 The bottom 2x2 grid places heading and accuracy above altitude and heart rate.
 Each cell shows its label above its value. `ALT` is the phone's reported altitude
-above the WGS84 ellipsoid in whole metres; it is not necessarily elevation above
-mean sea level. Negative altitude and sea level are valid. `ALT --m` means the
-phone did not provide altitude. Altitude refreshes with each location fix.
+above the WGS84 ellipsoid, displayed in metres in Metric mode or feet/miles in
+Imperial mode; it is not necessarily elevation above mean sea level. Negative
+altitude and sea level are valid. A `--` value means the phone did not provide
+altitude. Altitude refreshes with each location fix.
 
 A heart glyph from the built-in system fallback font labels the watch's
 current Pebble Health heart rate in beats per minute.
@@ -54,10 +63,9 @@ and every minute. Watchface buttons retain their system behavior. Actual accurac
 phone's location service, not the number of displayed decimal places. If a
 refresh fails, the last coordinates stay visible with a `GPS stale` status.
 
-On watches with a color backlight, the app overrides its tint to red while in
-the foreground and restores the user's default on focus loss or exit. Brightness
-and automatic backlight timing remain unchanged. The SDK makes the override a
-no-op on watches without a color backlight.
+On watches with a color backlight, the selected tint is applied while the
+watchface is in the foreground and the user's default is restored on focus loss
+or exit. Brightness and automatic backlight timing remain unchanged.
 
 ## Building & running
 

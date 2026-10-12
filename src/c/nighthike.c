@@ -25,6 +25,138 @@ static char s_time_text[12];
 static char s_latitude_text[20];
 static char s_longitude_text[20];
 static bool s_has_location;
+static bool s_app_focused;
+static int32_t s_accuracy_meters = -1;
+static int32_t s_altitude_meters;
+static bool s_altitude_valid;
+
+#define SETTINGS_KEY 1
+
+typedef struct {
+  bool imperial_units;
+  bool use_system_backlight;
+  uint32_t backlight_color;
+} WatchSettings;
+
+static WatchSettings s_settings = {
+  .imperial_units = false,
+  .use_system_backlight = false,
+  .backlight_color = 0xFF0000
+};
+
+static void prv_save_settings(void) {
+  persist_write_data(SETTINGS_KEY, &s_settings, sizeof(s_settings));
+}
+
+static void prv_load_settings(void) {
+  if(persist_exists(SETTINGS_KEY) &&
+     persist_get_size(SETTINGS_KEY) == sizeof(s_settings)) {
+    persist_read_data(SETTINGS_KEY, &s_settings, sizeof(s_settings));
+  }
+}
+
+static void prv_apply_backlight(void) {
+  if(s_app_focused && !s_settings.use_system_backlight) {
+    (void)light_set_color_rgb888(s_settings.backlight_color);
+  } else {
+    (void)light_set_system_color();
+  }
+}
+
+static void prv_update_accuracy_display(void) {
+  if(s_accuracy_meters < 0) {
+    text_layer_set_text(s_accuracy_layer, s_settings.imperial_units ? "--ft" : "--m");
+    return;
+  }
+  if(!s_settings.imperial_units) {
+    if(s_accuracy_meters > 99999) {
+      text_layer_set_text(s_accuracy_layer, ">99km");
+    } else {
+      snprintf(s_accuracy_text, sizeof(s_accuracy_text), "%ldm",
+               (long)s_accuracy_meters);
+      text_layer_set_text(s_accuracy_layer, s_accuracy_text);
+    }
+    return;
+  }
+  if(s_accuracy_meters >= 159325) {
+    text_layer_set_text(s_accuracy_layer, ">99mi");
+  } else if(s_accuracy_meters > 304) {
+    int32_t miles = (s_accuracy_meters * 100 + 160934 - 1) / 160934;
+    snprintf(s_accuracy_text, sizeof(s_accuracy_text), "%ldmi", (long)miles);
+    text_layer_set_text(s_accuracy_layer, s_accuracy_text);
+  } else {
+    int32_t feet = (int32_t)(((int64_t)s_accuracy_meters * 328084 + 99999) / 100000);
+    snprintf(s_accuracy_text, sizeof(s_accuracy_text), "%ldft", (long)feet);
+    text_layer_set_text(s_accuracy_layer, s_accuracy_text);
+  }
+}
+
+static void prv_update_altitude_display(void) {
+  if(!s_altitude_valid) {
+    text_layer_set_text(s_altitude_layer, s_settings.imperial_units ? "--ft" : "--m");
+    return;
+  }
+  if(!s_settings.imperial_units) {
+    if(s_altitude_meters > 9999 || s_altitude_meters < -9999) {
+      snprintf(s_altitude_text, sizeof(s_altitude_text), "%s9km",
+               s_altitude_meters < 0 ? "<-" : ">");
+    } else {
+      snprintf(s_altitude_text, sizeof(s_altitude_text), "%ldm", (long)s_altitude_meters);
+    }
+    text_layer_set_text(s_altitude_layer, s_altitude_text);
+    return;
+  }
+  int64_t feet = ((int64_t)s_altitude_meters * 328084 +
+                  (s_altitude_meters < 0 ? -50000 : 50000)) / 100000;
+  if(feet > 47520 || feet < -47520) {
+    snprintf(s_altitude_text, sizeof(s_altitude_text), "%s9mi",
+             feet < 0 ? "<-" : ">");
+  } else if(feet > 5280 || feet < -5280) {
+    int32_t miles = (int32_t)((feet + (feet < 0 ? -2640 : 2640)) / 5280);
+    snprintf(s_altitude_text, sizeof(s_altitude_text), "%ldmi", (long)miles);
+  } else {
+    snprintf(s_altitude_text, sizeof(s_altitude_text), "%ldft", (long)feet);
+  }
+  text_layer_set_text(s_altitude_layer, s_altitude_text);
+}
+
+static void prv_apply_preferences(DictionaryIterator *iterator) {
+  bool changed = false;
+  Tuple *units = dict_find(iterator, MESSAGE_KEY_Units);
+  if(units && units->type == TUPLE_CSTRING) {
+    bool imperial = strcmp(units->value->cstring, "imperial") == 0;
+    if(s_settings.imperial_units != imperial) {
+      s_settings.imperial_units = imperial;
+      changed = true;
+    }
+  }
+
+  Tuple *backlight = dict_find(iterator, MESSAGE_KEY_BacklightColor);
+  if(backlight && backlight->type == TUPLE_CSTRING) {
+    const char *value = backlight->value->cstring;
+    uint32_t color = 0xFF0000;
+    bool use_system = false;
+    if(strcmp(value, "orange") == 0) color = 0xFF8000;
+    else if(strcmp(value, "yellow") == 0) color = 0xFFFF00;
+    else if(strcmp(value, "green") == 0) color = 0x00FF00;
+    else if(strcmp(value, "blue") == 0) color = 0x0000FF;
+    else if(strcmp(value, "white") == 0) color = 0xFFFFFF;
+    else if(strcmp(value, "system") == 0) use_system = true;
+    if(s_settings.backlight_color != color ||
+       s_settings.use_system_backlight != use_system) {
+      s_settings.backlight_color = color;
+      s_settings.use_system_backlight = use_system;
+      changed = true;
+    }
+  }
+
+  if(changed) {
+    prv_save_settings();
+    prv_update_accuracy_display();
+    prv_update_altitude_display();
+    prv_apply_backlight();
+  }
+}
 
 static void prv_update_heart_rate(void) {
 #if defined(PBL_HEALTH)
@@ -52,11 +184,8 @@ static void prv_health_changed(HealthEventType event, void *context) {
 #endif
 
 static void prv_app_focus_changed(bool in_focus) {
-  if(in_focus) {
-    (void)light_set_color_rgb888(0xFF0000);
-  } else {
-    (void)light_set_system_color();
-  }
+  s_app_focused = in_focus;
+  prv_apply_backlight();
 }
 
 static TextLayer *prv_add_text(Layer *parent, GRect frame,
@@ -89,6 +218,7 @@ static void prv_format_coordinate(char *buffer, size_t size, int32_t value,
 }
 
 static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
+  prv_apply_preferences(iterator);
   Tuple *latitude = dict_find(iterator, MESSAGE_KEY_Latitude);
   Tuple *longitude = dict_find(iterator, MESSAGE_KEY_Longitude);
   Tuple *status = dict_find(iterator, MESSAGE_KEY_LocationStatus);
@@ -110,31 +240,19 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
                           longitude_value, 'E', 'W');
     text_layer_set_text(s_latitude_layer, s_latitude_text);
     text_layer_set_text(s_longitude_layer, s_longitude_text);
-    if(accuracy && accuracy->type == TUPLE_INT &&
-       accuracy->length == sizeof(int32_t) && accuracy->value->int32 >= 0) {
-      if(accuracy->value->int32 > 99999) {
-        snprintf(s_accuracy_text, sizeof(s_accuracy_text), ">99km");
-      } else {
-        snprintf(s_accuracy_text, sizeof(s_accuracy_text), "%ldm",
-                 (long)accuracy->value->int32);
-      }
-      text_layer_set_text(s_accuracy_layer, s_accuracy_text);
-    } else {
-      text_layer_set_text(s_accuracy_layer, "--m");
-    }
+    s_accuracy_meters = accuracy && accuracy->type == TUPLE_INT &&
+      accuracy->length == sizeof(int32_t) && accuracy->value->int32 >= 0 ?
+      accuracy->value->int32 : -1;
+    prv_update_accuracy_display();
     if(altitude_valid && altitude_valid->type == TUPLE_INT &&
        altitude_valid->length == sizeof(int32_t) && altitude_valid->value->int32 == 1 &&
        altitude && altitude->type == TUPLE_INT && altitude->length == sizeof(int32_t)) {
-      int32_t metres = altitude->value->int32;
-      if(metres > 9999 || metres < -9999) {
-        snprintf(s_altitude_text, sizeof(s_altitude_text), "%s9km",
-                 metres < 0 ? "<-" : ">");
-      } else {
-        snprintf(s_altitude_text, sizeof(s_altitude_text), "%ldm", (long)metres);
-      }
-      text_layer_set_text(s_altitude_layer, s_altitude_text);
+      s_altitude_meters = altitude->value->int32;
+      s_altitude_valid = true;
+      prv_update_altitude_display();
     } else {
-      text_layer_set_text(s_altitude_layer, "--m");
+      s_altitude_valid = false;
+      prv_update_altitude_display();
     }
     text_layer_set_text(s_status_layer, "");
     s_has_location = true;
@@ -165,8 +283,9 @@ static void prv_heading_changed(CompassHeadingData heading) {
   } else {
     int32_t clockwise = (TRIG_MAX_ANGLE - heading.magnetic_heading) % TRIG_MAX_ANGLE;
     int32_t degrees = (clockwise * 360 + TRIG_MAX_ANGLE / 2) / TRIG_MAX_ANGLE % 360;
-    snprintf(s_heading_text, sizeof(s_heading_text), "%03ldM%s",
-             (long)degrees, heading.compass_status == CompassStatusCalibrating ? "*" : "");
+    char direction = "NESW"[((degrees + 45) / 90) % 4];
+    snprintf(s_heading_text, sizeof(s_heading_text), "%c %ldM%s", direction,
+         (long)degrees, heading.compass_status == CompassStatusCalibrating ? "*" : "");
     text_layer_set_text(s_heading_layer, s_heading_text);
   }
 }
@@ -260,7 +379,8 @@ static void prv_window_load(Window *window) {
                                  "--", s_detail_font);
   s_accuracy_layer = prv_add_text(window_layer,
                                   prv_grid_frame(bounds, top + 16, 18, true),
-                                  "--m", s_detail_font);
+                                  s_settings.imperial_units ? "--ft" : "--m",
+                                  s_detail_font);
   top += detail_height;
   s_metric_labels[2] = prv_add_text(window_layer,
                                     prv_grid_frame(bounds, top, 16, false),
@@ -270,7 +390,8 @@ static void prv_window_load(Window *window) {
                                     heart_rate_label, s_label_font);
   s_altitude_layer = prv_add_text(window_layer,
                                   prv_grid_frame(bounds, top + 16, 18, false),
-                                  "--m", s_detail_font);
+                                  s_settings.imperial_units ? "--ft" : "--m",
+                                  s_detail_font);
   GRect heart_value_frame = prv_grid_frame(bounds, top + 16, 18, true);
   s_heart_icon_layer = prv_add_text(window_layer,
                                     GRect(heart_value_frame.origin.x,
@@ -308,6 +429,7 @@ static void prv_window_unload(Window *window) {
 }
 
 static void prv_init(void) {
+  prv_load_settings();
   s_window = window_create();
   window_set_background_color(s_window, GColorBlack);
   window_set_window_handlers(s_window, (WindowHandlers) {
@@ -345,7 +467,8 @@ static void prv_deinit(void) {
   compass_service_unsubscribe();
 #endif
   app_focus_service_unsubscribe();
-  (void)light_set_system_color();
+  s_app_focused = false;
+  prv_apply_backlight();
   tick_timer_service_unsubscribe();
   app_message_deregister_callbacks();
   window_destroy(s_window);

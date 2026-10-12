@@ -1,0 +1,40 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Nighthike Preferences"
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "select",
+        "messageKey": "Units",
+        "label": "Units",
+        "defaultValue": "metric",
+        "options": [
+          { "label": "Metric", "value": "metric" },
+          { "label": "Imperial", "value": "imperial" }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "BacklightColor",
+        "label": "Backlight Color",
+        "defaultValue": "red",
+        "options": [
+          { "label": "Red", "value": "red" },
+          { "label": "Orange", "value": "orange" },
+          { "label": "Yellow", "value": "yellow" },
+          { "label": "Green", "value": "green" },
+          { "label": "Blue", "value": "blue" },
+          { "label": "White", "value": "white" },
+          { "label": "System Default", "value": "system" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "submit",
+    "defaultValue": "Save Preferences"
+  }
+]

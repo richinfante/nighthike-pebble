@@ -14,6 +14,15 @@ function createPhone() {
       addEventListener: (name, handler) => { handlers[name] = handler; },
       sendAppMessage: message => { messages.push(message); }
     },
+    require: moduleName => {
+      if (moduleName === '@rebble/clay') {
+        return function Clay() {};
+      }
+      if (moduleName === './config.json') {
+        return [];
+      }
+      throw new Error(`Unexpected module: ${moduleName}`);
+    },
     navigator: {
       geolocation: {
         getCurrentPosition: (success, failure, options) => {
