@@ -22,6 +22,7 @@ static char s_heading_text[24];
 static char s_altitude_text[24];
 static char s_heart_rate_text[24];
 static char s_time_text[12];
+static char s_time_label_text[24];
 static char s_latitude_text[20];
 static char s_longitude_text[20];
 static bool s_has_location;
@@ -201,8 +202,16 @@ static TextLayer *prv_add_text(Layer *parent, GRect frame,
 }
 
 static void prv_update_time(struct tm *tick_time, TimeUnits units_changed) {
-  strftime(s_time_text, sizeof(s_time_text),
-           clock_is_24h_style() ? "%H:%M:%S" : "%I:%M:%S", tick_time);
+  bool is_24h = clock_is_24h_style();
+  strftime(s_time_text, sizeof(s_time_text), is_24h ? "%H:%M:%S" : "%I:%M:%S",
+           tick_time);
+  if(is_24h) {
+    snprintf(s_time_label_text, sizeof(s_time_label_text), "LOCAL TIME");
+  } else {
+    snprintf(s_time_label_text, sizeof(s_time_label_text), "LOCAL TIME %s",
+             tick_time->tm_hour < 12 ? "AM" : "PM");
+  }
+  text_layer_set_text(s_time_label, s_time_label_text);
   text_layer_set_text(s_time_layer, s_time_text);
   if(tick_time->tm_sec == 0) {
     prv_update_heart_rate();
